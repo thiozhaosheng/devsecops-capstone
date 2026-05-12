@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # 1. The Orchestration Engine (Team Member 1)
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins_server
+    user: root
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      # This allows Jenkins to use your computer's Docker to run ZAP & Juice Shop
+      - //var/run/docker.sock:/var/run/docker.sock
+      # THE ANSWER TO YOUR QUESTION: This links a local "reports" folder to Jenkins
+      - ./reports:/var/jenkins_reports
+    restart: unless-stopped
+
+  # 2. The SAST Tool (Team Member 4)
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube_server
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+    restart: unless-stopped
+
+  # 3. Optional: A Web Server just to display your HTML Reports
+  report-viewer:
+    image: nginx:alpine
+    container_name: report_viewer
+    ports:
+      - "8081:80"
+    volumes:
+      # This serves any HTML file placed in your local "reports" folder on port 8081
+      - ./reports:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+volumes:
+  jenkins_data:
+  sonarqube_data:
