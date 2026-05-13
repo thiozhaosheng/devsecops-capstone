@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # 1. CI/CD Orchestration Engine
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins_server
+    user: root
+    ports:
+      - "8080:8080"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      # Mounts host Docker socket to allow Jenkins to spin up sibling containers for pipeline stages
+      - //var/run/docker.sock:/var/run/docker.sock
+      # Mounts local reports directory to persist and share pipeline artifacts
+      - ./reports:/var/jenkins_reports
+    restart: unless-stopped
+
+  # 2. Static Application Security Testing (SAST) Environment
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube_server
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+    restart: unless-stopped
+
+  # 3. Artifact Web Server (Optional)
+  report-viewer:
+    image: nginx:alpine
+    container_name: report_viewer
+    ports:
+      - "8081:80"
+    volumes:
+      # Serves HTML artifacts from the persistent reports volume via read-only access
+      - ./reports:/usr/share/nginx/html:ro
+    restart: unless-stopped
+
+volumes:
+  jenkins_data:
+  sonarqube_data:
