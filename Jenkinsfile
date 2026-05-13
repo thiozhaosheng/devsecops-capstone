@@ -15,6 +15,9 @@ pipeline {
                 script {
                     def scannerHome = tool 'SonarScanner'
 
+                    sh 'ls -la'
+sh 'ls -la juice-shop'
+
                     withSonarQubeEnv('SonarQube') {
                         sh """
                         ${scannerHome}/bin/sonar-scanner \
