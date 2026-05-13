@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # 1. The Orchestration Engine (Team Member 1)
+  # 1. CI/CD Orchestration Engine
   jenkins:
     image: jenkins/jenkins:lts
     container_name: jenkins_server
@@ -10,13 +10,13 @@ services:
       - "8080:8080"
     volumes:
       - jenkins_data:/var/jenkins_home
-      # This allows Jenkins to use your computer's Docker to run ZAP & Juice Shop
+      # Mounts host Docker socket to allow Jenkins to spin up sibling containers for pipeline stages
       - //var/run/docker.sock:/var/run/docker.sock
-      # THE ANSWER TO YOUR QUESTION: This links a local "reports" folder to Jenkins
+      # Mounts local reports directory to persist and share pipeline artifacts
       - ./reports:/var/jenkins_reports
     restart: unless-stopped
 
-  # 2. The SAST Tool (Team Member 4)
+  # 2. Static Application Security Testing (SAST) Environment
   sonarqube:
     image: sonarqube:community
     container_name: sonarqube_server
@@ -28,14 +28,14 @@ services:
       - sonarqube_data:/opt/sonarqube/data
     restart: unless-stopped
 
-  # 3. Optional: A Web Server just to display your HTML Reports
+  # 3. Artifact Web Server (Optional)
   report-viewer:
     image: nginx:alpine
     container_name: report_viewer
     ports:
       - "8081:80"
     volumes:
-      # This serves any HTML file placed in your local "reports" folder on port 8081
+      # Serves HTML artifacts from the persistent reports volume via read-only access
       - ./reports:/usr/share/nginx/html:ro
     restart: unless-stopped
 
