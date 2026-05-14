@@ -61,4 +61,15 @@ pipeline {
             sh 'docker stop juice-shop || true'
         }
     }
+
+    stage('SCA - Dependency Check') {
+    steps {
+        dependencyCheck additionalArguments: '--format HTML --format XML', odcInstallation: 'dependency-check'
+    }
+    post {
+        always {
+            dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+        }
+    }
+}
 }
