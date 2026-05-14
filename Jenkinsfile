@@ -52,24 +52,24 @@ pipeline {
                 sh 'docker volume rm zap_temp || true'
             }
         }
+
+        stage('SCA Security Scan - Dependency Check') {
+            steps {
+                echo 'Running OWASP Dependency-Check SCA scan...'
+                dependencyCheck additionalArguments: '--scan ./ --format HTML --format XML', odcInstallation: 'Dependency-Check'
+            }
+        }
     }
 
     post {
         always {
             echo 'Saving evidence and cleaning up...'
             archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
+
+            dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
+            archiveArtifacts artifacts: '**/dependency-check-report.html', allowEmptyArchive: true
+            
             sh 'docker stop juice-shop || true'
         }
     }
-
-    stage('SCA - Dependency Check') {
-    steps {
-        dependencyCheck additionalArguments: '--format HTML --format XML', odcInstallation: 'dependency-check'
-    }
-    post {
-        always {
-            dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-        }
-    }
-}
 }
