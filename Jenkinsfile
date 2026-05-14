@@ -67,8 +67,8 @@ pipeline {
             archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
 
             dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            archiveArtifacts artifacts: '**/dependency-check-report.html', allowEmptyArchive: true
-            
+            archiveArtifacts artifacts: '**/dependency-check-report.html', allowEmptyArchive: tru
+
             sh 'docker stop juice-shop || true'
         }
     }
