@@ -28,34 +28,18 @@ pipeline {
             }
         }
 
-        stage('SCA - OWASP Dependency Check') {
+        stage('SCA Scan - Dependency Check') {
             steps {
-                echo 'Running OWASP Dependency Check for vulnerable dependencies...'
-                script {
-                    def workspacePath = env.WORKSPACE
-                    workspacePath = workspacePath.replace('\\', '/')
-                    
-                    sh """
-                        docker run --rm \
-                            -v ${workspacePath}:/src \
-                            -v ${workspacePath}/dependency-check-report:/report \
-                            owasp/dependency-check \
-                            --scan /src \
-                            --format HTML \
-                            --out /report \
-                            --prettyPrint
-                    """
-                }
-                
-                script {
-                    def reportFile = "${env.WORKSPACE}\\dependency-check-report\\dependency-check-report.html"
-                    if (fileExists(reportFile)) {
-                        archiveArtifacts artifacts: 'dependency-check-report/dependency-check-report.html', allowEmptyArchive: true
-                        echo 'SCA report archived successfully'
-                    } else {
-                        echo "SCA report not found at ${reportFile}"
-                    }
-                }
+                echo 'Running OWASP Dependency-Check scan...'
+
+                dependencyCheck additionalArguments: '''
+                    --scan . \
+                    --format HTML \
+                    --out dependency-check-report
+                ''',
+                odcInstallation: 'DependencyCheck'
+
+                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
             }
         }
 
@@ -66,7 +50,6 @@ pipeline {
                 sh 'docker rm juice-shop || true'
                 sh 'docker run --rm -d -p 3000:3000 --name juice-shop bkimminich/juice-shop'
                 sleep time: 15, unit: 'SECONDS'
-                echo 'Juice Shop is now running at http://localhost:3000'
             }
         }
 
@@ -82,25 +65,19 @@ pipeline {
 
                 sh 'docker rm zap_scan || true'
                 sh 'docker volume rm zap_temp || true'
-                
-                archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
             }
         }
     }
 
     post {
         always {
-            echo 'Pipeline completed. Cleaning up...'
+            echo 'Saving evidence and cleaning up...'
+
+            archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
+
+            archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
+
             sh 'docker stop juice-shop || true'
-            echo 'Artifacts available: SCA report, DAST report'
-        }
-        
-        success {
-            echo 'All security scans passed successfully!'
-        }
-        
-        failure {
-            echo 'Pipeline failed. Check security scan reports for vulnerabilities.'
         }
     }
 }
