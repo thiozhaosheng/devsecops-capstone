@@ -14,8 +14,9 @@ services:
       SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: "true"
 
   jenkins:
-    image: jenkins/jenkins:lts
+    image: jenkins/jenkins:lts-jdk17
     container_name: jenkins
+    user: root
     ports:
       - "8080:8080"
       - "50000:50000"
