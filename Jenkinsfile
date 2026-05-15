@@ -34,7 +34,7 @@ pipeline {
 
                 dependencyCheck additionalArguments: '''
                     --scan . \
-                    --format HTML \
+                    --format ALL \
                     --out dependency-check-report
                 ''',
                 odcInstallation: 'DependencyCheck'
