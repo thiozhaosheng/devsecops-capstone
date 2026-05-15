@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        // Define the Dependency-Check tool we'll install in Jenkins
-    }
-
     stages {
         stage('Checkout Source Code') {
             steps {
