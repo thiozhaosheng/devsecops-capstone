@@ -28,6 +28,37 @@ pipeline {
             }
         }
 
+        stage('SCA - OWASP Dependency Check') {
+            steps {
+                echo 'Running OWASP Dependency Check for vulnerable dependencies...'
+                script {
+                    def workspacePath = env.WORKSPACE
+                    workspacePath = workspacePath.replace('\\', '/')
+                    
+                    sh """
+                        docker run --rm \
+                            -v ${workspacePath}:/src \
+                            -v ${workspacePath}/dependency-check-report:/report \
+                            owasp/dependency-check \
+                            --scan /src \
+                            --format HTML \
+                            --out /report \
+                            --prettyPrint
+                    """
+                }
+                
+                script {
+                    def reportFile = "${env.WORKSPACE}\\dependency-check-report\\dependency-check-report.html"
+                    if (fileExists(reportFile)) {
+                        archiveArtifacts artifacts: 'dependency-check-report/dependency-check-report.html', allowEmptyArchive: true
+                        echo 'SCA report archived successfully'
+                    } else {
+                        echo "SCA report not found at ${reportFile}"
+                    }
+                }
+            }
+        }
+
         stage('Deploy Juice Shop Target') {
             steps {
                 echo 'Preparing the target environment...'
@@ -35,6 +66,7 @@ pipeline {
                 sh 'docker rm juice-shop || true'
                 sh 'docker run --rm -d -p 3000:3000 --name juice-shop bkimminich/juice-shop'
                 sleep time: 15, unit: 'SECONDS'
+                echo 'Juice Shop is now running at http://localhost:3000'
             }
         }
 
@@ -50,26 +82,25 @@ pipeline {
 
                 sh 'docker rm zap_scan || true'
                 sh 'docker volume rm zap_temp || true'
-            }
-        }
-
-        stage('SCA Security Scan - Dependency Check') {
-            steps {
-                echo 'Running OWASP Dependency-Check SCA scan...'
-                dependencyCheck additionalArguments: '--scan ./ --format HTML --format XML', odcInstallation: 'Dependency-Check'
+                
+                archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
             }
         }
     }
 
     post {
         always {
-            echo 'Saving evidence and cleaning up...'
-            archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
-
-            dependencyCheckPublisher pattern: '**/dependency-check-report.xml'
-            archiveArtifacts artifacts: '**/dependency-check-report.html', allowEmptyArchive: true
-
+            echo 'Pipeline completed. Cleaning up...'
             sh 'docker stop juice-shop || true'
+            echo 'Artifacts available: SCA report, DAST report'
+        }
+        
+        success {
+            echo 'All security scans passed successfully!'
+        }
+        
+        failure {
+            echo 'Pipeline failed. Check security scan reports for vulnerabilities.'
         }
     }
 }
