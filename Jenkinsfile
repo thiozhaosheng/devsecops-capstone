@@ -29,19 +29,19 @@ pipeline {
         }
 
         stage('SCA Scan - Dependency Check') {
-            steps {
-                echo 'Running OWASP Dependency-Check scan...'
+    steps {
+        echo 'Running OWASP Dependency-Check scan...'
 
-                dependencyCheck additionalArguments: '''
-                    --scan . \
-                    --format HTML \
-                    --out dependency-check-report
-                ''',
-                odcInstallation: 'DependencyCheck'
+        dependencyCheck additionalArguments: '''
+            --scan . \
+            --format ALL \
+            --out dependency-check-report
+        ''',
+        odcInstallation: 'DependencyCheck'
 
-                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
-            }
-        }
+        dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
+    }
+}
 
         stage('Deploy Juice Shop Target') {
             steps {
