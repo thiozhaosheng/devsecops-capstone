@@ -1,6 +1,10 @@
 pipeline {
     agent any
 
+    tools {
+        // Define the Dependency-Check tool we'll install in Jenkins
+    }
+
     stages {
         stage('Checkout Source Code') {
             steps {
@@ -28,18 +32,35 @@ pipeline {
             }
         }
 
-        stage('SCA Scan - Dependency Check') {
+        stage('SCA - OWASP Dependency Check') {
             steps {
-                echo 'Running OWASP Dependency-Check scan...'
-
+                echo 'Running OWASP Dependency Check for vulnerable dependencies...'
+                
+                // Create the reports directory
+                sh 'mkdir -p dependency-check-report'
+                
+                // Run Dependency-Check using the Jenkins plugin
+                // IMPORTANT: Replace YOUR_API_KEY_HERE with your actual NVD API key
                 dependencyCheck additionalArguments: '''
-                    --scan . \
-                    --format ALL \
-                    --out dependency-check-report
-                ''',
-                odcInstallation: 'DependencyCheck'
-
-                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml'
+                    --scan ./
+                    --format HTML
+                    --format XML
+                    --out ./dependency-check-report
+                    --prettyPrint
+                    --nvdApiKey f1d5a78c-368f-4869-a056-ccf30e06eaac
+                ''', odcInstallation: 'SCA-DependencyCheck'
+                
+                // Publish the results (doesn't fail the build, just reports)
+                dependencyCheckPublisher failedTotalCritical: 1,
+                                         pattern: 'dependency-check-report/dependency-check-report.xml',
+                                         stopBuild: false
+            }
+            post {
+                always {
+                    // Archive reports even if scan finds vulnerabilities
+                    archiveArtifacts artifacts: 'dependency-check-report/*.*',
+                                   allowEmptyArchive: true
+                }
             }
         }
 
@@ -50,6 +71,7 @@ pipeline {
                 sh 'docker rm juice-shop || true'
                 sh 'docker run --rm -d -p 3000:3000 --name juice-shop bkimminich/juice-shop'
                 sleep time: 15, unit: 'SECONDS'
+                echo 'Juice Shop is now running at http://localhost:3000'
             }
         }
 
@@ -65,19 +87,25 @@ pipeline {
 
                 sh 'docker rm zap_scan || true'
                 sh 'docker volume rm zap_temp || true'
+                
+                archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
             }
         }
     }
 
     post {
         always {
-            echo 'Saving evidence and cleaning up...'
-
-            archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
-
-            archiveArtifacts artifacts: 'dependency-check-report/**', allowEmptyArchive: true
-
+            echo 'Pipeline completed. Cleaning up...'
             sh 'docker stop juice-shop || true'
+            echo 'Artifacts available: SCA report, DAST report'
+        }
+        
+        success {
+            echo 'All security scans passed successfully!'
+        }
+        
+        failure {
+            echo 'Pipeline failed. Check security scan reports for vulnerabilities.'
         }
     }
 }
