@@ -28,37 +28,39 @@ pipeline {
             }
         }
 
-        stage('SCA - OWASP Dependency Check') {
-            steps {
-                echo 'Running OWASP Dependency Check for vulnerable dependencies...'
-                
-                // Create the reports directory
-                sh 'mkdir -p dependency-check-report'
-                
-                // Run Dependency-Check using the Jenkins plugin
-                // IMPORTANT: Replace YOUR_API_KEY_HERE with your actual NVD API key
-                dependencyCheck additionalArguments: '''
-                    --scan ./
-                    --format HTML
-                    --format XML
-                    --out ./dependency-check-report
-                    --prettyPrint
-                    --nvdApiKey f1d5a78c-368f-4869-a056-ccf30e06eaac
-                ''', odcInstallation: 'SCA-DependencyCheck'
-                
-                // Publish the results (doesn't fail the build, just reports)
-                dependencyCheckPublisher failedTotalCritical: 1,
-                                         pattern: 'dependency-check-report/dependency-check-report.xml',
-                                         stopBuild: false
-            }
-            post {
-                always {
-                    // Archive reports even if scan finds vulnerabilities
-                    archiveArtifacts artifacts: 'dependency-check-report/*.*',
-                                   allowEmptyArchive: true
-                }
-            }
+stage('SCA - OWASP Dependency Check') {
+    steps {
+        echo 'Preparing dependency files for SCA scan...'
+
+        dir('juice-shop') {
+            sh 'npm install --package-lock-only'
         }
+
+        echo 'Running OWASP Dependency Check for vulnerable dependencies...'
+        sh 'mkdir -p dependency-check-report'
+
+        dependencyCheck additionalArguments: '''
+            --scan ./juice-shop
+            --format HTML
+            --format XML
+            --out ./dependency-check-report
+            --prettyPrint
+            --disableAssembly
+            --nvdApiKey f1d5a78c-368f-4869-a056-ccf30e06eaac
+        ''', odcInstallation: 'SCA-DependencyCheck'
+
+        dependencyCheckPublisher failedTotalCritical: 1,
+            pattern: 'dependency-check-report/dependency-check-report.xml',
+            stopBuild: false
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'dependency-check-report/*.*',
+                allowEmptyArchive: true
+        }
+    }
+}
 
         stage('Deploy Juice Shop Target') {
             steps {
