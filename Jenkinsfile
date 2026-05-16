@@ -33,10 +33,9 @@ stage('SCA - OWASP Dependency Check') {
         echo 'Preparing dependency files for SCA scan...'
 
         dir('juice-shop') {
-            sh 'npm install --package-lock-only'
+            sh 'npm install --package-lock-only --ignore-scripts'
         }
 
-        echo 'Running OWASP Dependency Check for vulnerable dependencies...'
         sh 'mkdir -p dependency-check-report'
 
         dependencyCheck additionalArguments: '''
@@ -45,19 +44,18 @@ stage('SCA - OWASP Dependency Check') {
             --format XML
             --out ./dependency-check-report
             --prettyPrint
-            --disableAssembly
-            --nvdApiKey f1d5a78c-368f-4869-a056-ccf30e06eaac
+            --nvdApiKey YOUR_API_KEY
         ''', odcInstallation: 'SCA-DependencyCheck'
 
         dependencyCheckPublisher failedTotalCritical: 1,
-            pattern: 'dependency-check-report/dependency-check-report.xml',
-            stopBuild: false
+                                 pattern: 'dependency-check-report/dependency-check-report.xml',
+                                 stopBuild: false
     }
 
     post {
         always {
             archiveArtifacts artifacts: 'dependency-check-report/*.*',
-                allowEmptyArchive: true
+                               allowEmptyArchive: true
         }
     }
 }
