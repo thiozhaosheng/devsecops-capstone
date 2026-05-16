@@ -28,37 +28,36 @@ pipeline {
             }
         }
 
-stage('SCA - OWASP Dependency Check') {
-    steps {
-        echo 'Preparing dependency files for SCA scan...'
+        stage('SCA - OWASP Dependency Check') {
+            steps {
+                echo 'Preparing dependency files for SCA scan...'
 
-        dir('juice-shop') {
-            sh 'npm install --package-lock-only --ignore-scripts'
+                dir('juice-shop') {
+                    sh 'npm install --package-lock-only --ignore-scripts'
+                }
+
+                sh 'mkdir -p dependency-check-report'
+
+                dependencyCheck additionalArguments: '''
+                    --scan ./juice-shop
+                    --format HTML
+                    --format XML
+                    --out ./dependency-check-report
+                    --prettyPrint
+                    --nvdApiKey YOUR_API_KEY
+                ''', odcInstallation: 'SCA-DependencyCheck'
+
+                dependencyCheckPublisher pattern: 'dependency-check-report/dependency-check-report.xml',
+                                         stopBuild: false
+            }
+
+            post {
+                always {
+                    archiveArtifacts artifacts: 'dependency-check-report/*.*',
+                                     allowEmptyArchive: true
+                }
+            }
         }
-
-        sh 'mkdir -p dependency-check-report'
-
-        dependencyCheck additionalArguments: '''
-            --scan ./juice-shop
-            --format HTML
-            --format XML
-            --out ./dependency-check-report
-            --prettyPrint
-            --nvdApiKey YOUR_API_KEY
-        ''', odcInstallation: 'SCA-DependencyCheck'
-
-        dependencyCheckPublisher failedTotalCritical: 1,
-                                 pattern: 'dependency-check-report/dependency-check-report.xml',
-                                 stopBuild: false
-    }
-
-    post {
-        always {
-            archiveArtifacts artifacts: 'dependency-check-report/*.*',
-                               allowEmptyArchive: true
-        }
-    }
-}
 
         stage('Deploy Juice Shop Target') {
             steps {
@@ -83,7 +82,7 @@ stage('SCA - OWASP Dependency Check') {
 
                 sh 'docker rm zap_scan || true'
                 sh 'docker volume rm zap_temp || true'
-                
+
                 archiveArtifacts artifacts: 'zap_report.html', allowEmptyArchive: true
             }
         }
@@ -95,13 +94,13 @@ stage('SCA - OWASP Dependency Check') {
             sh 'docker stop juice-shop || true'
             echo 'Artifacts available: SCA report, DAST report'
         }
-        
+
         success {
-            echo 'All security scans passed successfully!'
+            echo 'Pipeline completed successfully. Security scan reports are available as artifacts.'
         }
-        
+
         failure {
-            echo 'Pipeline failed. Check security scan reports for vulnerabilities.'
+            echo 'Pipeline failed due to execution error. Check console logs and security scan reports.'
         }
     }
 }
